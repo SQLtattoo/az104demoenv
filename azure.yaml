@@ -1,0 +1,17 @@
+name: az104-demos
+
+# Just the name of your RG (azd will create it if needed)
+resourceGroup: AZ104-demos-rg
+
+# Point azd at your Bicep folder and default module
+infra:
+  provider: bicep   # (default; you can omit this line)
+  path: infra       # relative path to all your .bicep files
+  module: main      # the single entry-point .bicep file
+  parameters:
+    # parameters that will be passed to your Bicep module if you wish to override them
+    location:           ukSouth
+    publicDnsZoneBase:  contoso.com //change the name only, if needed, must be .com domain
+    privateDnsZoneBase: contoso.local //change the name only, if needed, must be a local domain
+    vaultName:          contoso-rsv
+    storageAccountPrefix: staz104
