@@ -1,16 +1,16 @@
 targetScope = 'resourceGroup'
 
 @description('Location for hub vnet resources')
-param location1 string = 'ukSouth'
+param hubLocation string = 'ukSouth'
 
 @description('Location for spoke1 vnet resources')
-param location2 string = 'ukSouth'
+param spoke1Location string = 'ukSouth'
 
 @description('Location for spoke2 vnet resources')
-param location3 string = 'northeurope'
+param spoke2Location string = 'northeurope'
 
 @description('Location for workload vnet resources')
-param location4 string = 'eastus2'
+param workloadLocation string = 'eastus2'
 
 @description('Administrator username for virtual machines')
 param adminUsername string
@@ -19,26 +19,31 @@ param adminUsername string
 @secure()
 param adminPassword string
 
+var hubVnetName = 'hub-vnet'
+var spoke1VnetName = 'spoke1-vnet'
+var spoke2VnetName = 'spoke2-vnet'
+var workloadVnetName = 'workload-vnet'
+
 // 1️⃣ The hub & spokes
 module network 'network.bicep' = {
   name: 'vnets'
   params: {
-    hublocation: location1
-    spoke1location: location2
-    spoke2location: location3
-    workloadlocation: location4
-    hubVnetName: 'hub-vnet'
-    spoke1VnetName: 'spoke1-vnet'
-    spoke2VnetName: 'spoke2-vnet'
-    workloadVnetName: 'workload-vnet'
+    hublocation: hubLocation
+    spoke1location: spoke1Location
+    spoke2location: spoke2Location
+    workloadlocation: workloadLocation
+    hubVnetName: hubVnetName
+    spoke1VnetName: spoke1VnetName
+    spoke2VnetName: spoke2VnetName
+    workloadVnetName: workloadVnetName
   }
 }
 
 module bastion 'bastion.bicep' = {
   name: 'bastion'
   params: {
-    location:      location1
-    vnetName:      'hub-vnet'
+    location:      hubLocation
+    vnetName:      hubVnetName
     bastionName:   'hub-bastion'
     pipName:       'hub-bastion-pip'
   }
@@ -51,13 +56,13 @@ module bastion 'bastion.bicep' = {
 module vpnGateway 'vpnGateway.bicep' = {
   name: 'vpn'
   params: {
-    location:       location1     // your hubLocation param
-    vnetName:       'hub-vnet'
+    location:       hubLocation     // your hubLocation param
+    vnetName:       hubVnetName
     gatewayPip:     'hub-vpn-pip'       // or parameterize from azure.yaml
     vpnGatewayName: 'hub-vpn-gateway'   // likewise
   }
   dependsOn: [
-    bastion       // ensure Bastion/subnets exist first, if you like
+    network       // ensure the VNet & subnet exist
   ]
 } 
 
@@ -65,9 +70,9 @@ module vpnGateway 'vpnGateway.bicep' = {
 module enableGatewayTransit 'enableGatewayTransit.bicep' = {
   name: 'enableGatewayTransit'
   params: {
-    hubVnetName:    'hub-vnet'
-    spoke1VnetName: 'spoke1-vnet'
-    spoke2VnetName: 'spoke2-vnet'
+    hubVnetName:    hubVnetName
+    spoke1VnetName: spoke1VnetName
+    spoke2VnetName: spoke2VnetName
   }
   dependsOn: [
     vpnGateway         // the module name for your VPN gateway in main.bicep
@@ -77,8 +82,8 @@ module enableGatewayTransit 'enableGatewayTransit.bicep' = {
 module webTier 'webTier.bicep' = {
   name: 'webTier'
   params: {
-    location:       location1
-    vnetName:       'spoke1-vnet'
+    location:       hubLocation
+    vnetName:       spoke1VnetName
     lbName:         'web-lb'
     vmNames:        [
       'web1-vm'
@@ -89,7 +94,7 @@ module webTier 'webTier.bicep' = {
     adminPassword:  adminPassword
   }
   dependsOn: [
-    //enableGatewayTransit
+    network // Depends on network module that creates the spoke1-vnet
   ]
 }
 
@@ -97,8 +102,8 @@ module webTier 'webTier.bicep' = {
 module appTier 'appTier.bicep' = {
   name: 'appTier'
   params: {
-    location: location3  // North Europe region
-    vnetName: 'spoke2-vnet'
+    location: spoke2Location  // North Europe region
+    vnetName: spoke2VnetName
     appGwName: 'app-gateway'
     vmNames: [
       'vm1'
@@ -113,12 +118,12 @@ module appTier 'appTier.bicep' = {
   ]
 }
 
-// Deploy Workload Tier in East US
+// Deploy Workload Tier 
 module workloadTier 'workloadTier.bicep' = {
   name: 'workloadTier'
   params: {
-    location: location4  // East US region
-    vnetName: 'workload-vnet'
+    location: workloadLocation  // East US region
+    vnetName: workloadVnetName
     lbName: 'workload-lb'
     vmName: 'workload1-vm'
     subnetName: 'default'
@@ -133,8 +138,8 @@ module workloadTier 'workloadTier.bicep' = {
 module consumerPe 'consumerPE.bicep' = {
   name: 'consumerPE'
   params: {
-    location:           location3
-    vnetName:           'spoke2-vnet'
+    location:           spoke2Location
+    vnetName:           spoke2VnetName
     consumerSubnetName: 'default'
     peName:             'workload-pe'
     plsName:            'workload-pls'
@@ -155,7 +160,7 @@ param storageAccountPrefix string = 'staz104'
 module shared 'sharedServices.bicep' = {
   name: 'sharedServices'
   params: {
-    location:            location1
+    location:            hubLocation
     publicDnsZoneBase:   publicDnsZoneBase
     privateDnsZoneBase:  privateDnsZoneBase
     vaultName:           vaultName
@@ -163,5 +168,40 @@ module shared 'sharedServices.bicep' = {
   }
   dependsOn: [
     workloadTier
+  ]
+}
+
+module dnsLinks 'dnsLinks.bicep' = {
+  name: 'dnsLinks'
+  params: {
+    privateDnsZoneName:   shared.outputs.privateDnsZoneName
+    hubVnetName:          hubVnetName
+    spoke1VnetName:       spoke1VnetName
+    spoke2VnetName:       spoke2VnetName
+  }
+  dependsOn: [
+    shared 
+  ]
+}
+
+module monitoring 'monitoring.bicep' = {
+  name: 'monitoring'
+  params: {
+    location:      hubLocation
+    lawName:       'az104-law'
+    retentionDays: 30
+    storageAccountName: shared.outputs.storageAccountName  // add this param if needed for storageDiag
+  }
+  dependsOn: [
+    // ensure all your resources exist first
+    shared
+    network
+    bastion
+    vpnGateway
+    enableGatewayTransit
+    webTier
+    appTier
+    workloadTier
+    dnsLinks
   ]
 }

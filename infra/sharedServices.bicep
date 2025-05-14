@@ -22,7 +22,7 @@ param vaultName          string = 'contoso-rsv'
 
 param storageAccountPrefix string = 'staz104'
 var uniqueStorageName = '${storageAccountPrefix}${uniqueString(resourceGroup().id)}'
-var storageAccountName = length(uniqueStorageName) > 24 ? substring(uniqueStorageName, 0, 24) : uniqueStorageName
+var uniqueStorageAccountName = length(uniqueStorageName) > 24 ? substring(uniqueStorageName, 0, 24) : uniqueStorageName
 
 @description('SKU for the Storage Account')
 param storageSku         string = 'Standard_LRS'
@@ -52,7 +52,7 @@ resource recoveryVault 'Microsoft.RecoveryServices/vaults@2021-08-01' = {
 
 // 4️⃣ Storage Account
 resource storageAccount 'Microsoft.Storage/storageAccounts@2021-08-01' = {
-  name: storageAccountName
+  name: uniqueStorageAccountName
   location: location
   sku: {
     name: storageSku
@@ -65,3 +65,8 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2021-08-01' = {
     supportsHttpsTrafficOnly: true
   }
 }
+
+// Export them so other modules can consume
+output publicDnsZoneName  string = uniquePublicDnsZoneName
+output privateDnsZoneName string = uniquePrivateDnsZoneName
+output storageAccountName string = uniqueStorageAccountName

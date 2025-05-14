@@ -140,7 +140,7 @@ resource appServiceIPRestriction 'Microsoft.Web/sites/config@2021-02-01' = {
   properties: {
     ipSecurityRestrictions: [
       {
-        ipAddress: '${reference(appGwPip.id, '2021-02-01').ipAddress}/32'
+        ipAddress: '${appGwPip.properties.ipAddress}/32'
         action: 'Allow'
         priority: 100
         name: 'Allow-AppGw'
