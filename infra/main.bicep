@@ -53,7 +53,7 @@ module bastion 'bastion.bicep' = {
 }
 
 // 3️⃣ VPN Gateway in the hub VNet
-module vpnGateway 'vpnGateway.bicep' = {
+/* module vpnGateway 'vpnGateway.bicep' = {
   name: 'vpn'
   params: {
     location:       hubLocation     // your hubLocation param
@@ -66,8 +66,9 @@ module vpnGateway 'vpnGateway.bicep' = {
   ]
 } 
 
-// 4️⃣ Enable VPN transit on the existing peerings
-module enableGatewayTransit 'enableGatewayTransit.bicep' = {
+
+ // 4️⃣ Enable VPN transit on the existing peerings
+ module enableGatewayTransit 'enableGatewayTransit.bicep' = {
   name: 'enableGatewayTransit'
   params: {
     hubVnetName:    hubVnetName
@@ -77,7 +78,7 @@ module enableGatewayTransit 'enableGatewayTransit.bicep' = {
   dependsOn: [
     vpnGateway         // the module name for your VPN gateway in main.bicep
   ]
-} 
+} */
 
 module webTier 'webTier.bicep' = {
   name: 'webTier'
@@ -171,7 +172,7 @@ module shared 'sharedServices.bicep' = {
   ]
 }
 
-module dnsLinks 'dnsLinks.bicep' = {
+/* module dnsLinks 'dnsLinks.bicep' = {
   name: 'dnsLinks'
   params: {
     privateDnsZoneName:   shared.outputs.privateDnsZoneName
@@ -182,8 +183,23 @@ module dnsLinks 'dnsLinks.bicep' = {
   dependsOn: [
     shared 
   ]
-}
+} */
 
+module vmss 'vmss.bicep' = {
+  name: 'vmss'
+  params: {
+    location:       spoke2Location
+    vnetName:       spoke2VnetName
+    subnetName:     'default'
+    vmSku:          'Standard_B2s'
+    instanceCount:  2
+    adminUsername:  adminUsername
+    adminPassword: adminPassword
+  }
+  dependsOn: [
+    network
+  ]
+}
 module monitoring 'monitoring.bicep' = {
   name: 'monitoring'
   params: {
@@ -197,11 +213,12 @@ module monitoring 'monitoring.bicep' = {
     shared
     network
     bastion
-    vpnGateway
-    enableGatewayTransit
+    //vpnGateway
+    //enableGatewayTransit
     webTier
     appTier
     workloadTier
-    dnsLinks
+    //dnsLinks
+    vmss
   ]
 }

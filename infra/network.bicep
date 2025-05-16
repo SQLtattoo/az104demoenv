@@ -223,6 +223,25 @@ resource appGwNsg 'Microsoft.Network/networkSecurityGroups@2021-02-01' = {
   }
 }
 
+// Create Route Table with custom route to Virtual Appliance
+resource customRouteTable 'Microsoft.Network/routeTables@2021-05-01' = {
+  name: 'custom-route-table'
+  location: spoke2location 
+  properties: {
+    disableBgpRoutePropagation: false
+    routes: [
+      {
+        name: 'to-virtual-appliance'
+        properties: {
+          addressPrefix: '0.0.0.0/0'
+          nextHopType: 'VirtualAppliance'
+          nextHopIpAddress: '10.1.0.192'
+        }
+      }
+    ]
+  }
+}
+
 // Create Spoke #1 VNet with NSG directly associated in subnet properties
 resource spoke1Vnet 'Microsoft.Network/virtualNetworks@2021-05-01' = {
   name: spoke1VnetName
