@@ -1,5 +1,10 @@
 targetScope = 'resourceGroup'
 
+// Import common parameters - UPDATED PATH
+module common 'common.bicep' = {
+  name: 'common-params'
+}
+
 @description('Location for hub vnet resources')
 param hublocation string
 
@@ -21,24 +26,33 @@ param spoke2VnetName string
 @description('Name of workload virtual network (private-link)')
 param workloadVnetName string
 
-// Address prefixes
-var hubAddressPrefix      = '10.1.0.0/16'
-var spoke1AddressPrefix   = '10.2.0.0/16'
-var spoke2AddressPrefix   = '10.3.0.0/16'
-var workloadAddressPrefix = '10.4.0.0/16'
+// Use the common network address prefixes
+var hubAddressPrefix      = common.outputs.networkAddressSpace.hub
+var spoke1AddressPrefix   = common.outputs.networkAddressSpace.spoke1  
+var spoke2AddressPrefix   = common.outputs.networkAddressSpace.spoke2
+var workloadAddressPrefix = common.outputs.networkAddressSpace.workload
 
-// Hub subnets
-var bastionSubnetName = 'AzureBastionSubnet'
-var bastionSubnetPrefix = '10.1.1.0/26'
-var gatewaySubnetName = 'GatewaySubnet'
-var gatewaySubnetPrefix = '10.1.2.0/27'
-var hubMgmtSubnetName = 'hub-mgmt'
-var hubMgmtSubnetPrefix = '10.1.3.0/24'
+// Use the common subnet configurations
+var bastionSubnetName = common.outputs.subnets.bastion.name
+var bastionSubnetPrefix = common.outputs.subnets.bastion.prefix  
+var gatewaySubnetName = common.outputs.subnets.gateway.name
+var gatewaySubnetPrefix = common.outputs.subnets.gateway.prefix
+var hubMgmtSubnetName = common.outputs.subnets.management.name
+var hubMgmtSubnetPrefix = common.outputs.subnets.management.prefix
+
+// Apply common tags to all resources - fixed to use object literal directly
+var tags = {
+  environment: 'demo'
+  projectName: 'az104'
+  CostControl: 'ignore'
+  SecurityControl: 'ignore'
+}
 
 // Create Hub VNet
 resource hubVnet 'Microsoft.Network/virtualNetworks@2021-05-01' = {
   name: hubVnetName
   location: hublocation
+  tags: tags
   properties: {
     addressSpace: {
       addressPrefixes: [ hubAddressPrefix ]

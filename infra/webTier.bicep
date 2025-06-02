@@ -1,23 +1,28 @@
 // infra/webTier.bicep
 targetScope = 'resourceGroup'
 
+// Import common settings - UPDATED PATH
+module common 'common.bicep' = {
+  name: 'web-common-params'
+}
+
 @description('Region for Web tier')
-param location    string
+param location string
 
 @description('Name of the spoke1 VNet')
-param vnetName    string
+param vnetName string
 
 @description('Name for the Public Load Balancer')
-param lbName      string = 'web-lb'
+param lbName string = 'web-lb'
 
 @description('List of VM names to create behind the LB')
-param vmNames     array = [
+param vmNames array = [
   'web1-vm'
   'web2-vm'
 ]
 
 @description('Subnet name to use for VMs and LB')
-param subnetName  string = 'default'
+param subnetName string = 'default'
 
 @secure()
 param adminPassword string
@@ -25,16 +30,30 @@ param adminPassword string
 @description('Admin username for the VMs')
 param adminUsername string
 
+// Define tags directly to avoid the module reference calculation error
+param tags object = {
+  environment: 'demo'
+  projectName: 'az104'
+}
+
+// Define SKUs directly rather than using module outputs
+var lbSku = 'Standard'
+var pipSku = 'Standard'
+var vmSize = 'Standard_B2ms'
+
 // 1️⃣ Reference the spoke VNet
 resource spoke1Vnet 'Microsoft.Network/virtualNetworks@2021-05-01' existing = {
   name: vnetName
 }
 
-// 2️⃣ Create a public IP for the LB
+var subnetRef = '${spoke1Vnet.id}/subnets/${subnetName}'
+
+// 2️⃣ Create a public IP for the LB with standardized SKU
 resource lbPIP 'Microsoft.Network/publicIPAddresses@2021-02-01' = {
   name: '${lbName}-pip'
   location: location
-  sku: { name: 'Standard' }
+  tags: tags
+  sku: { name: pipSku }
   properties: {
     publicIPAllocationMethod: 'Static'
   }
@@ -48,7 +67,8 @@ var healthProbeId = resourceId('Microsoft.Network/loadBalancers/probes', lbName,
 resource lb 'Microsoft.Network/loadBalancers@2021-05-01' = {
   name: lbName
   location: location
-  sku: { name: 'Standard' }
+  tags: tags
+  sku: { name: lbSku }
   properties: {
     frontendIPConfigurations: [
       {
@@ -90,92 +110,36 @@ resource lb 'Microsoft.Network/loadBalancers@2021-05-01' = {
         }
       }
     ]
-    inboundNatRules: [
-      {
-        name: 'RDP-VM1'
-        properties: {
-          frontendIPConfiguration: { id: frontendIPConfigId }
-          protocol: 'Tcp'
-          frontendPort: 33891
-          backendPort: 3389
-          idleTimeoutInMinutes: 4
-          enableFloatingIP: false
-        }
-      }, {
-        name: 'RDP-VM2'
-        properties: {
-          frontendIPConfiguration: { id: frontendIPConfigId }
-          protocol: 'Tcp'
-          frontendPort: 33892
-          backendPort: 3389
-          idleTimeoutInMinutes: 4
-          enableFloatingIP: false
-        }
+    inboundNatRules: [for (vm, i) in vmNames: {
+      name: 'RDP-VM${i + 1}'
+      properties: {
+        frontendIPConfiguration: { id: frontendIPConfigId }
+        protocol: 'Tcp'
+        frontendPort: 33891 + i
+        backendPort: 3389
+        idleTimeoutInMinutes: 4
+        enableFloatingIP: false
       }
-    ]
+    }]
   }
-  dependsOn: [
-    nics // Ensure NICs are created before referencing them
-  ]
 }
 
-// 4️⃣ Create NICs + VMs and attach to LB
-var subnetRef = '${spoke1Vnet.id}/subnets/${subnetName}' // Corrected subnet reference
-
-// Define NICs first
-resource nics 'Microsoft.Network/networkInterfaces@2021-02-01' = [for (vm, i) in vmNames: {
-  name: '${vm}-nic'
-  location: location
-  properties: {
-    ipConfigurations: [
-      {
-        name: 'ipconfig1'
-        properties: {
-          subnet: { id: subnetRef }
-          privateIPAllocationMethod: 'Dynamic'
-          loadBalancerBackendAddressPools: [
-            { id: backendPoolId } // Use variable for Load Balancer reference
-          ]
-          loadBalancerInboundNatRules: [
-            { id: resourceId('Microsoft.Network/loadBalancers/inboundNatRules', lbName, 'RDP-VM${i + 1}') }
-          ]
-        }
-      }
-    ]
-  }
-}]
-
-// Then define VMs with explicit dependencies
-resource vms 'Microsoft.Compute/virtualMachines@2021-07-01' = [for (vm, i) in vmNames: {
-  name: vm
-  location: location
-  properties: {
-    hardwareProfile: { vmSize: 'Standard_B4ms' }
-    networkProfile: {
-      networkInterfaces: [
-        {
-          id: nics[i].id // Reference the NIC directly
-        }
-      ]
-    }
-    storageProfile: {
-      imageReference: {
-        publisher: 'MicrosoftWindowsServer'
-        offer:     'WindowsServer'
-        sku:       '2019-Datacenter'
-        version:   'latest'
-      }
-      osDisk: {
-        createOption: 'FromImage'
-      }
-    }
-    osProfile: {
-      computerName: vm
-      adminUsername: adminUsername 
-      adminPassword: adminPassword
-    }
+// 4️⃣ Create VMs using the VM module
+module webVMs 'modules/vm.bicep' = [for (vm, i) in vmNames: {
+  name: '${vm}-deployment'
+  params: {
+    vmName: vm
+    location: location
+    subnetId: subnetRef
+    adminUsername: adminUsername
+    adminPassword: adminPassword
+    vmSize: vmSize
+    loadBalancerBackendPoolId: backendPoolId
+    natRuleId: resourceId('Microsoft.Network/loadBalancers/inboundNatRules', lbName, 'RDP-VM${i + 1}')
+    tags: tags
+    installIIS: true
   }
   dependsOn: [
-    nics[i] // Explicit dependencies
+    lb
   ]
 }]

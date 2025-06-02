@@ -1,7 +1,4 @@
-name: az104-demos
-
-# Just the name of your RG (azd will create it if needed)
-resourceGroup: AZ104-demos-rg
+name: tdd-vi-az104demos
 
 # Point azd at your Bicep folder and default module
 infra:
@@ -10,8 +7,18 @@ infra:
   module: main      # the single entry-point .bicep file
   parameters:
     # parameters that will be passed to your Bicep module if you wish to override them
-    location:           ukSouth
-    publicDnsZoneBase:  contoso.com //change the name only, if needed, must be .com domain
-    privateDnsZoneBase: contoso.local //change the name only, if needed, must be a local domain
-    vaultName:          contoso-rsv
-    storageAccountPrefix: staz104
+    hubLocation: 'uksouth'
+    spoke1Location: 'uksouth'
+    spoke2Location: 'northeurope'
+    workloadLocation: 'eastus2'
+    adminUsername: 'azduser'
+    deployVpnGateway: true # set to false if you don't want to deploy the VPN gateway (approx. 20 minutes to deploy)
+    deployKeyVault: true
+    adminObjectId: '3ea48438-e610-4d2e-acd0-8d95625d7b73' # your Entra ID Object ID, you can get this from the Azure CLI with `az ad signed-in-user show --query id -o tsv`
+    enableCmkForStorage: false
+    publicDnsZoneBase: 'contoso.com' #change the name only, if needed, must be .com domain
+    privateDnsZoneBase: 'contoso.local' #change the name only, if needed, must be a local domain
+    vaultName: 'contoso-rsv'
+    storageAccountPrefix: 'staz104'
+    deployGovernance: true
+     # make it false after an initial deployment for faster times

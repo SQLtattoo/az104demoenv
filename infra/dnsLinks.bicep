@@ -17,10 +17,11 @@ resource privateZone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
   name: privateDnsZoneName
 }
 
-// Hub VNet link
+// Hub VNet link - using parent property
 resource hubLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: privateZone
+  name: 'link-to-hub'
   location: 'global'
-  name: '${privateDnsZoneName}/link-to-hub'
   properties: {
     virtualNetwork: {
       id: resourceId('Microsoft.Network/virtualNetworks', hubVnetName)
@@ -29,10 +30,11 @@ resource hubLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-
   }
 }
 
-// Spoke1 VNet link
+// Spoke1 VNet link - using parent property
 resource spoke1Link 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: privateZone
+  name: 'link-to-spoke1'
   location: 'global'
-  name: '${privateDnsZoneName}/link-to-spoke1'
   properties: {
     virtualNetwork: {
       id: resourceId('Microsoft.Network/virtualNetworks', spoke1VnetName)
@@ -41,10 +43,11 @@ resource spoke1Link 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-
   }
 }
 
-// Spoke2 VNet link
+// Spoke2 VNet link - using parent property
 resource spoke2Link 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: privateZone
+  name: 'link-to-spoke2'
   location: 'global'
-  name: '${privateDnsZoneName}/link-to-spoke2'
   properties: {
     virtualNetwork: {
       id: resourceId('Microsoft.Network/virtualNetworks', spoke2VnetName)

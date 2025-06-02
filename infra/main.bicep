@@ -19,12 +19,30 @@ param adminUsername string
 @secure()
 param adminPassword string
 
+// Add parameter to control VPN deployment
+@description('Whether to deploy VPN Gateway')
+param deployVpnGateway bool = true
+
+// Add parameters for Key Vault and CMK
+@description('Whether to deploy Key Vault for customer-managed keys demos')
+param deployKeyVault bool = true // Changed default to true
+
+@description('Object ID of the admin for Key Vault access')
+param adminObjectId string = ''
+
+@description('Whether to enable Customer-Managed Keys for storage encryption')
+param enableCmkForStorage bool = false
+
+param publicDnsZoneBase  string = 'contoso.com'
+param privateDnsZoneBase string = 'contoso.local'
+param vaultName          string = 'contoso-rsv'
+param storageAccountPrefix string = 'staz104'
+
 var hubVnetName = 'hub-vnet'
 var spoke1VnetName = 'spoke1-vnet'
 var spoke2VnetName = 'spoke2-vnet'
 var workloadVnetName = 'workload-vnet'
 
-// 1️⃣ The hub & spokes
 module network 'network.bicep' = {
   name: 'vnets'
   params: {
@@ -48,27 +66,24 @@ module bastion 'bastion.bicep' = {
     pipName:       'hub-bastion-pip'
   }
   dependsOn: [
-    network  // ensure the VNet & subnet exist
+    network 
   ]
 }
 
-// 3️⃣ VPN Gateway in the hub VNet
-/* module vpnGateway 'vpnGateway.bicep' = {
+module vpnGateway 'vpnGateway.bicep' = if (deployVpnGateway) {
   name: 'vpn'
   params: {
-    location:       hubLocation     // your hubLocation param
-    vnetName:       hubVnetName
-    gatewayPip:     'hub-vpn-pip'       // or parameterize from azure.yaml
-    vpnGatewayName: 'hub-vpn-gateway'   // likewise
+    location: hubLocation
+    vnetName: hubVnetName
+    gatewayPip: 'hub-vpn-pip'
+    vpnGatewayName: 'hub-vpn-gateway'
   }
   dependsOn: [
-    network       // ensure the VNet & subnet exist
+    network  
   ]
 } 
 
-
- // 4️⃣ Enable VPN transit on the existing peerings
- module enableGatewayTransit 'enableGatewayTransit.bicep' = {
+ module enableGatewayTransit 'enableGatewayTransit.bicep' = if (deployVpnGateway) {
   name: 'enableGatewayTransit'
   params: {
     hubVnetName:    hubVnetName
@@ -76,9 +91,9 @@ module bastion 'bastion.bicep' = {
     spoke2VnetName: spoke2VnetName
   }
   dependsOn: [
-    vpnGateway         // the module name for your VPN gateway in main.bicep
+    vpnGateway 
   ]
-} */
+}
 
 module webTier 'webTier.bicep' = {
   name: 'webTier'
@@ -95,15 +110,14 @@ module webTier 'webTier.bicep' = {
     adminPassword:  adminPassword
   }
   dependsOn: [
-    network // Depends on network module that creates the spoke1-vnet
+    network 
   ]
 }
 
-// Deploy App Tier in spoke2
 module appTier 'appTier.bicep' = {
   name: 'appTier'
   params: {
-    location: spoke2Location  // North Europe region
+    location: spoke2Location 
     vnetName: spoke2VnetName
     appGwName: 'app-gateway'
     vmNames: [
@@ -115,15 +129,14 @@ module appTier 'appTier.bicep' = {
     adminPassword: adminPassword
   }
   dependsOn: [
-    network  // Depends on network module that creates the spoke2-vnet
+    network 
   ]
 }
 
-// Deploy Workload Tier 
 module workloadTier 'workloadTier.bicep' = {
   name: 'workloadTier'
   params: {
-    location: workloadLocation  // East US region
+    location: workloadLocation 
     vnetName: workloadVnetName
     lbName: 'workload-lb'
     vmName: 'workload1-vm'
@@ -132,7 +145,7 @@ module workloadTier 'workloadTier.bicep' = {
     adminPassword: adminPassword
   }
   dependsOn: [
-    network  // Depends on network module that creates the workload-vnet
+    network 
   ]
 }
 
@@ -150,29 +163,24 @@ module consumerPe 'consumerPE.bicep' = {
   ]
 }
 
-
-// Shared services parameters
-param publicDnsZoneBase  string = 'contoso.com'
-param privateDnsZoneBase string = 'contoso.local'
-param vaultName          string = 'contoso-rsv'
-param storageAccountPrefix string = 'staz104'
-
-// Deploy shared services
 module shared 'sharedServices.bicep' = {
   name: 'sharedServices'
   params: {
-    location:            hubLocation
-    publicDnsZoneBase:   publicDnsZoneBase
-    privateDnsZoneBase:  privateDnsZoneBase
-    vaultName:           vaultName
-    storageAccountPrefix:  storageAccountPrefix
+    location: hubLocation
+    publicDnsZoneBase: publicDnsZoneBase
+    privateDnsZoneBase: privateDnsZoneBase
+    vaultName: vaultName
+    storageAccountPrefix: storageAccountPrefix
+    deployKeyVault: deployKeyVault
+    adminObjectId: adminObjectId
+    enableCmkForStorage: enableCmkForStorage
   }
   dependsOn: [
     workloadTier
   ]
 }
 
-/* module dnsLinks 'dnsLinks.bicep' = {
+module dnsLinks 'dnsLinks.bicep' = {
   name: 'dnsLinks'
   params: {
     privateDnsZoneName:   shared.outputs.privateDnsZoneName
@@ -183,9 +191,9 @@ module shared 'sharedServices.bicep' = {
   dependsOn: [
     shared 
   ]
-} */
+}
 
-module vmss 'vmss.bicep' = {
+/* module vmss 'vmss.bicep' = {
   name: 'vmss'
   params: {
     location:       spoke2Location
@@ -200,25 +208,24 @@ module vmss 'vmss.bicep' = {
     network
   ]
 }
-module monitoring 'monitoring.bicep' = {
-  name: 'monitoring'
+*/
+
+// Deploy governance components conditionally
+module governance 'governance.bicep' = {
+  name: 'governance-components'
+  scope: subscription()
   params: {
-    location:      hubLocation
-    lawName:       'az104-law'
-    retentionDays: 30
-    storageAccountName: shared.outputs.storageAccountName  // add this param if needed for storageDiag
+    resourceGroupName: resourceGroup().name
+    allowedLocations: [
+      hubLocation
+      spoke1Location
+      spoke2Location
+      workloadLocation
+    ]
+    allowedVmSizes: [
+      'Standard_B2s' 
+      'Standard_B2ms'
+      'Standard_B4ms'
+    ]
   }
-  dependsOn: [
-    // ensure all your resources exist first
-    shared
-    network
-    bastion
-    //vpnGateway
-    //enableGatewayTransit
-    webTier
-    appTier
-    workloadTier
-    //dnsLinks
-    vmss
-  ]
 }
