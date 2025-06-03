@@ -1,6 +1,3 @@
-# Login to Azure
-# Connect-AzAccount
-
 # Set variables
 $resourceGroupName = "az104demos-rg"
 $vaultName = "contoso-rsv"

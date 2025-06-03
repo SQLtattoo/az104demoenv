@@ -35,7 +35,7 @@ param imageReference object = {
 }
 
 @description('Whether to install IIS on the VM')
-param installIIS bool = false
+param installIIS bool = true
 
 @description('Custom HTML content for default.htm')
 param customWebContent string = ''
@@ -107,20 +107,29 @@ resource vm 'Microsoft.Compute/virtualMachines@2021-07-01' = {
   }
 }
 
-// Install IIS extension only if requested
-resource iisExtension 'Microsoft.Compute/virtualMachines/extensions@2021-07-01' = if (installIIS) {
+resource iisExtension 'Microsoft.Compute/virtualMachines/extensions@2021-07-01'= if (installIIS) {
   parent: vm
   name: 'InstallIIS'
   location: location
+
   properties: {
     publisher: 'Microsoft.Compute'
     type: 'CustomScriptExtension'
     typeHandlerVersion: '1.10'
     autoUpgradeMinorVersion: true
-    settings: {
-      commandToExecute: empty(customWebContent) 
-        ? 'powershell.exe Install-WindowsFeature -Name Web-Server -IncludeManagementTools'
-        : 'powershell.exe -Command "Install-WindowsFeature -Name Web-Server -IncludeManagementTools; Set-Content -Path C:\\inetpub\\wwwroot\\default.htm -Value \'${customWebContent}\'"'
+
+    settings: {}
+    
+    protectedSettings: {
+      // Only one “commandToExecute” goes here
+    commandToExecute: '''
+      powershell -ExecutionPolicy Unrestricted -Command "
+        Install-WindowsFeature -Name Web-Server -IncludeManagementTools;
+        $hostName = $env:COMPUTERNAME;
+        $html = '<html><head><title>IIS</title></head><body><h1>Served by: ' + $hostName + '</h1></body></html>';
+        Set-Content -Path 'C:\\inetpub\\wwwroot\\default.htm' -Value $html -Encoding utf8
+      "
+    '''
     }
   }
 }

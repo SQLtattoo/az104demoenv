@@ -12,7 +12,7 @@ infra:
     spoke2Location: 'northeurope'
     workloadLocation: 'eastus2'
     adminUsername: 'azduser'
-    deployVpnGateway: true # set to false if you don't want to deploy the VPN gateway (approx. 20 minutes to deploy)
+    deployVpnGateway: false # set to false if you don't want to deploy the VPN gateway (approx. 20 minutes to deploy)
     deployKeyVault: true
     adminObjectId: '3ea48438-e610-4d2e-acd0-8d95625d7b73' # your Entra ID Object ID, you can get this from the Azure CLI with `az ad signed-in-user show --query id -o tsv`
     enableCmkForStorage: false
@@ -22,3 +22,23 @@ infra:
     storageAccountPrefix: 'staz104'
     deployGovernance: true
      # make it false after an initial deployment for faster times
+
+# hooks:
+#   postprovision:
+#     windows:
+#       shell: pwsh
+#       run: |
+#         $scriptPath = "$(Get-Location)\scripts\postworx.ps1"
+#         if (Test-Path $scriptPath) {
+#           & $scriptPath
+#         } else {
+#           Write-Host "Script not found: $scriptPath"
+#           exit 1
+#         }
+#     posix:
+#       shell: sh
+#       run: |
+#         chmod +x ./scripts/postworx.sh || echo "chmod failed, running anyway..."
+#         ./scripts/postworx.sh
+#       interactive: true
+#       continueOnError: false

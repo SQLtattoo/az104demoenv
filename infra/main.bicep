@@ -19,9 +19,13 @@ param adminUsername string
 @secure()
 param adminPassword string
 
+// Add parameter to control Bastion deployment
+@description('Whether to deploy Bastion Host')
+param deployBastion bool = false
+
 // Add parameter to control VPN deployment
 @description('Whether to deploy VPN Gateway')
-param deployVpnGateway bool = true
+param deployVpnGateway bool = false
 
 // Add parameters for Key Vault and CMK
 @description('Whether to deploy Key Vault for customer-managed keys demos')
@@ -43,6 +47,7 @@ var spoke1VnetName = 'spoke1-vnet'
 var spoke2VnetName = 'spoke2-vnet'
 var workloadVnetName = 'workload-vnet'
 
+
 module network 'network.bicep' = {
   name: 'vnets'
   params: {
@@ -57,7 +62,7 @@ module network 'network.bicep' = {
   }
 }
 
-module bastion 'bastion.bicep' = {
+module bastion 'bastion.bicep' = if (deployBastion) {
   name: 'bastion'
   params: {
     location:      hubLocation
@@ -110,7 +115,7 @@ module webTier 'webTier.bicep' = {
     adminPassword:  adminPassword
   }
   dependsOn: [
-    network 
+    //network 
   ]
 }
 
@@ -189,11 +194,11 @@ module dnsLinks 'dnsLinks.bicep' = {
     spoke2VnetName:       spoke2VnetName
   }
   dependsOn: [
-    shared 
+    network 
   ]
 }
 
-/* module vmss 'vmss.bicep' = {
+module vmss 'vmss.bicep' = {
   name: 'vmss'
   params: {
     location:       spoke2Location
@@ -208,7 +213,6 @@ module dnsLinks 'dnsLinks.bicep' = {
     network
   ]
 }
-*/
 
 // Deploy governance components conditionally
 module governance 'governance.bicep' = {

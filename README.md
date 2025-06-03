@@ -45,4 +45,4 @@ This repository contains infrastructure as code (Bicep) to deploy a comprehensiv
 - Azure Bastion for secure VM access
 - Key Vault and Customer-Managed Keys
 - Custom RBAC roles and Policy definitions
-- Azure Monitor configurations
+
