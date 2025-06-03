@@ -1,3 +1,4 @@
+# UNDER CONSTRUCTION
 # AZ-104 Azure Administrator Demo Environment
 
 This repository contains infrastructure as code (Bicep) to deploy a comprehensive environment for Azure Administrator (AZ-104) training and demonstrations.
@@ -28,7 +29,7 @@ This repository contains infrastructure as code (Bicep) to deploy a comprehensiv
    It's expected that monitoring may fail on the first deployment because VMs aren't ready yet.
    Run a second deployment after VMs are fully provisioned:
    ```bash
-   azd provision
+   azd up
    ```
 
 ## Troubleshooting
