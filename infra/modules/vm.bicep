@@ -111,25 +111,16 @@ resource iisExtension 'Microsoft.Compute/virtualMachines/extensions@2021-07-01'=
   parent: vm
   name: 'InstallIIS'
   location: location
-
   properties: {
     publisher: 'Microsoft.Compute'
     type: 'CustomScriptExtension'
     typeHandlerVersion: '1.10'
     autoUpgradeMinorVersion: true
-
-    settings: {}
-    
     protectedSettings: {
-      // Only one “commandToExecute” goes here
-    commandToExecute: '''
-      powershell -ExecutionPolicy Unrestricted -Command "
-        Install-WindowsFeature -Name Web-Server -IncludeManagementTools;
-        $hostName = $env:COMPUTERNAME;
-        $html = '<html><head><title>IIS</title></head><body><h1>Served by: ' + $hostName + '</h1></body></html>';
-        Set-Content -Path 'C:\\inetpub\\wwwroot\\default.htm' -Value $html -Encoding utf8
-      "
-    '''
+      fileUris: [
+        'https://raw.githubusercontent.com/SQLtattoo/az104demoenv/refs/heads/main/scripts/installIIS.ps1'
+      ]
+      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File installIIS.ps1'
     }
   }
 }
@@ -137,3 +128,4 @@ resource iisExtension 'Microsoft.Compute/virtualMachines/extensions@2021-07-01'=
 output vmId string = vm.id
 output nicId string = nic.id
 output privateIp string = nic.properties.ipConfigurations[0].properties.privateIPAddress
+

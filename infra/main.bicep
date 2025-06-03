@@ -21,15 +21,15 @@ param adminPassword string
 
 // Add parameter to control Bastion deployment
 @description('Whether to deploy Bastion Host')
-param deployBastion bool = false
+param deployBastion bool = true
 
 // Add parameter to control VPN deployment
 @description('Whether to deploy VPN Gateway')
-param deployVpnGateway bool = false
+param deployVpnGateway bool = true
 
 // Add parameters for Key Vault and CMK
 @description('Whether to deploy Key Vault for customer-managed keys demos')
-param deployKeyVault bool = true // Changed default to true
+param deployKeyVault bool = true 
 
 @description('Object ID of the admin for Key Vault access')
 param adminObjectId string = ''
