@@ -1,4 +1,3 @@
-# UNDER CONSTRUCTION
 # AZ-104 Azure Administrator Demo Environment
 
 This repository contains infrastructure as code (Bicep) to deploy a comprehensive environment for Azure Administrator (AZ-104) training and demonstrations.
